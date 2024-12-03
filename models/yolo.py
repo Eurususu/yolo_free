@@ -261,7 +261,8 @@ class Model(nn.Module):
             self._initialize_biases()  # only run once
             # logger.info('Strides: %s' % m.stride.tolist())
         elif isinstance(m, Detect_yolov11):
-            m.stride = torch.Tensor([8.0, 16.0, 32.0])
+            s = 256  # 2x min stride
+            m.stride = torch.tensor([s / x.shape[-2] for x in self.forward(torch.zeros(1, ch, s, s))])
             self.stride = m.stride
             m.bias_init()
 
@@ -393,13 +394,13 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
 
         n = max(round(n * gd), 1) if n > 1 else n  # depth gain
         if m in [Conv, GhostConv, Bottleneck, GhostBottleneck, SPP, DWConv, MixConv2d, Focus, CrossConv, BottleneckCSP,
-                 C3, C3TR,  C3k2, C2PSA, SPP, SPPF]:
+                 C3, C3TR,  C3k2, C2PSA, SPP, SPPF, C2f, C2]:
             c1, c2 = ch[f], args[0]
             if c2 != nc:  # if not output
                 c2 = make_divisible(min(c2, max_channels) * gw, 8)
 
             args = [c1, c2, *args[1:]]
-            if m in [BottleneckCSP, C3, C3TR, C3k2, C2PSA]:
+            if m in [BottleneckCSP, C3, C3TR, C3k2, C2PSA, C2f, C2]:
                 args.insert(2, n)  # number of repeats
                 n = 1
             if m is C3k2:  # for M/L/X sizes
