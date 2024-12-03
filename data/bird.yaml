@@ -1,0 +1,8 @@
+train: /home/jia/bird/train.txt # train images (relative to 'path') 118287 images
+val: /home/jia/bird/val.txt # val images (relative to 'path') 5000 images
+test:  # 20288 of 40670 images, submit to https://competitions.codalab.org/competitions/20794
+
+nc: 1
+# Classes
+names:
+  0: bird

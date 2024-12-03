@@ -1,0 +1,7 @@
+bird/
+pretrain/
+runs/
+weights/
+__pycache__/
+.idea/
+

@@ -1,0 +1,95 @@
+# Ultralytics YOLO ?, AGPL-3.0 license
+# YOLO11 object detection model with P3-P5 outputs. For Usage examples see https://docs.ultralytics.com/tasks/detect
+
+# Parameters
+nc: 80 # number of classes
+scales: # model compound scaling constants, i.e. 'model=yolo11n.yaml' will call yolo11.yaml with scale 'n'
+  # [depth, width, max_channels]
+  n: [0.50, 0.25, 1024] # summary: 319 layers, 2624080 parameters, 2624064 gradients, 6.6 GFLOPs
+  s: [0.50, 0.50, 1024] # summary: 319 layers, 9458752 parameters, 9458736 gradients, 21.7 GFLOPs
+  m: [0.50, 1.00, 512] # summary: 409 layers, 20114688 parameters, 20114672 gradients, 68.5 GFLOPs
+  l: [1.00, 1.00, 512] # summary: 631 layers, 25372160 parameters, 25372144 gradients, 87.6 GFLOPs
+  x: [1.00, 1.50, 512] # summary: 631 layers, 56966176 parameters, 56966160 gradients, 196.0 GFLOPs
+scale: s
+
+
+
+
+# YOLO11n backbone
+backbone:
+  # [from, repeats, module, args]
+  # Two Stream
+  ######### TransformerBlock One #############
+  # stream one
+  - [-1, 1, Conv, [64, 3, 2]] # 0-P1/2
+  - [-1, 1, Conv, [128, 3, 2]] # 1-P2/4
+  - [-1, 2, C3k2, [128, False, 0.25]]
+  # stream two
+  - [-4, 1, Conv, [64, 3, 2]] # 3-P1/2
+  - [ -1, 1, Conv, [ 128, 3, 2 ] ] # 4-P2/4
+  - [ -1, 2, C3k2, [ 128, False, 0.25 ] ] # 5-P2/4
+  # transformer fusion
+  - [ [ 2,5 ], 1, GPT, [ 128 ] ] # 6-P2/4
+  - [ [ 2,6 ], 1, Add2, [ 128,0 ] ]  # 7-P2/4 stream one:x+trans[0]
+  - [ [ 5,6 ], 1, Add2, [ 128,1 ] ]  # 8-P2/4 stream two:x+trans[1]
+  ######### TransformerBlock Two #############
+  # stream one
+  - [7, 1, Conv, [256, 3, 2]] # 9-P3/8
+  - [-1, 2, C3k2, [256, False, 0.25]] # 10-P3/8
+  # stream two
+  - [ 8, 1, Conv, [ 256, 3, 2 ] ] # 11-P3/8
+  - [ -1, 2, C3k2, [ 256, False, 0.25 ] ] # 12-P3/8
+  # transformer fusion
+  - [ [ 10,12 ], 1, GPT, [ 256 ] ]   # 13-P3/8
+  - [ [ 10,13 ], 1, Add2, [ 256,0 ] ]    # 14-P3/8 stream one x+trans[0]
+  - [ [ 12,13 ], 1, Add2, [ 256,1 ] ]    # 15-P3/8 stream two x+trans[1]
+  ######### TransformerBlock Three #############
+  # stream one
+  - [14, 1, Conv, [512, 3, 2]] # 16-P4/16
+  - [-1, 2, C3k2, [512, True]] # 17-P4/16
+  # stream two
+  - [ 15, 1, Conv, [ 512, 3, 2 ] ] # 18-P4/16
+  - [ -1, 2, C3k2, [ 512, True ] ] # 19-P4/16
+  # transformer fusion
+  - [ [ 17,19 ], 1, GPT, [ 512 ] ]   # 20-P3/8
+  - [ [ 17,20 ], 1, Add2, [ 512,0 ] ]    # 21-P3/8 stream one x+trans[0]
+  - [ [ 19,20 ], 1, Add2, [ 512,1 ] ]    # 22-P3/8 stream two x+trans[1]
+  ######### TransformerBlock Four #############
+  # stream one
+  - [-2, 1, Conv, [1024, 3, 2]] # 23-P5/32
+  - [-1, 2, C3k2, [1024, True]] # 24-P5/32
+  - [-1, 1, SPPF, [1024, 5]] # 25-P5/32
+  - [-1, 2, C2PSA, [1024]] # 26-P5/32
+  # stream2
+  - [ 22, 1, Conv, [ 1024, 3, 2 ] ] # 27-P5/32
+  - [ -1, 2, C3k2, [ 1024, True ] ] # 27-P5/32
+  - [ -1, 1, SPPF, [ 1024, 5 ] ] # 29-P5/32
+  - [ -1, 2, C2PSA, [ 1024 ] ] # 30-P5/32
+  # transformer fusion
+  - [ [ 26,30 ], 1, GPT, [ 1024 ] ]    # 31-P5/32
+  - [ [ 26,31 ], 1, Add2, [ 1024,0 ] ]    # 32-P5/32 stream one x+trans[0]
+  - [ [ 30,31 ], 1, Add2, [ 1024,1 ] ]    # 33-P5/32 stream two x+trans[1]
+  ######### Add Block #############
+  - [ [ 14,15 ], 1, Add, [ 1 ] ]   # 34-P3/8 fusion backbone P3
+  - [ [ 21,22 ], 1, Add, [ 1 ] ]   # 35-P4/16 fusion backbone P4
+  - [ [ 32,33 ], 1, Add, [ 1 ] ]   # 36-P5/32 fusion backbone P5
+
+# YOLO11n head
+head:
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 37
+  - [[-1, 35], 1, Concat, [1]] # 38 cat backbone P4
+  - [-1, 2, C3k2, [512, False]] # 39
+
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 40
+  - [[-1, 34], 1, Concat, [1]] # 41 cat backbone P3
+  - [-1, 2, C3k2, [256, False]] # 42 (P3/8-small)
+
+  - [-1, 1, Conv, [256, 3, 2]] # 43
+  - [[-1, 39], 1, Concat, [1]] # 44 cat head P4
+  - [-1, 2, C3k2, [512, False]] # 45 (P4/16-medium)
+
+  - [-1, 1, Conv, [512, 3, 2]] # 46
+  - [[-1, 36], 1, Concat, [1]] # 47 cat head P5
+  - [-1, 2, C3k2, [1024, True]] # 48 (P5/32-large)
+
+  - [[42, 45, 48], 1, Detect_yolov11, [nc]] # 49 Detect(P3, P4, P5)
