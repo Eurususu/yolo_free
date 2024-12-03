@@ -474,7 +474,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', type=str, default='', help='initial weights path')
     parser.add_argument('--cfg', type=str, default='./models/yolov5s.yaml', help='model.yaml path')
-    parser.add_argument('--data', type=str, default='./data/bird.yaml', help='data.yaml path')
+    parser.add_argument('--data', type=str, default='./data/bird_distri.yaml', help='data.yaml path')
     parser.add_argument('--hyp', type=str, default='data/hyp.scratch.yaml', help='hyperparameters path')
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--batch-size', type=int, default=16, help='total batch size for all GPUs')
@@ -566,7 +566,7 @@ if __name__ == '__main__':
             logger.info(f"{prefix}Start with 'tensorboard --logdir {opt.project}', view at http://localhost:6006/")
             tb_writer = SummaryWriter(opt.save_dir)  # Tensorboard
 
-            train(hyp, opt, device, tb_writer)
+        train(hyp, opt, device, tb_writer)
 
 
 

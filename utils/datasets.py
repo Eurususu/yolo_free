@@ -26,6 +26,7 @@ from utils.torch_utils import torch_distributed_zero_first
 
 
 import global_var
+import psutil
 
 
 # Parameters
@@ -117,8 +118,8 @@ def create_dataloader(path, imgsz, batch_size, stride, opt, hyp=None, augment=Fa
                                       prefix=prefix)
 
     batch_size = min(batch_size, len(dataset))
-    nw = min([os.cpu_count() // world_size, batch_size if batch_size > 1 else 0, workers])  # number of workers
-    sampler = torch.utils.data.distributed.DistributedSampler(dataset) if rank != -1 else None
+    nw = min([psutil.cpu_count(logical=True) // world_size, batch_size if batch_size > 1 else 0, workers])  # number of workers
+    sampler = torch.utils.data.distributed.DistributedSampler(dataset, shuffle=augment) if rank != -1 else None
     loader = torch.utils.data.DataLoader if image_weights else InfiniteDataLoader
 
 
@@ -586,7 +587,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                 x[:, 0] = 0
 
         n = len(shapes)  # number of images
-        bi = np.floor(np.arange(n) / batch_size).astype(np.int)  # batch index
+        bi = np.floor(np.arange(n) / batch_size).astype(np.int32)  # batch index
         nb = bi[-1] + 1  # number of batches
         self.batch = bi  # batch index of image
         self.n = n
@@ -614,7 +615,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                 elif mini > 1:
                     shapes[i] = [1, 1 / mini]
 
-            self.batch_shapes = np.ceil(np.array(shapes) * img_size / stride + pad).astype(np.int) * stride
+            self.batch_shapes = np.ceil(np.array(shapes) * img_size / stride + pad).astype(np.int32) * stride
 
         # Cache images into memory for faster training (WARNING: large datasets may exceed system RAM)
         self.imgs = [None] * n
@@ -894,7 +895,9 @@ class LoadMultiModalImagesAndLabels(Dataset):  # for training/testing
             self.img_files_ir = sorted([x.replace('/', os.sep) for x in f_ir if x.split('.')[-1].lower() in img_formats])
 
             # self.img_files = sorted([x for x in f if x.suffix[1:].lower() in img_formats])  # pathlib
-            assert (self.img_files_rgb, self.img_files_ir), (f'{prefix}No images found', f'{prefix}No images found')
+            # assert (self.img_files_rgb, self.img_files_ir), (f'{prefix}No images found', f'{prefix}No images found')
+            assert self.img_files_rgb, f'{prefix}No RGB images found'
+            assert self.img_files_ir, f'{prefix}No IR images found'
         except Exception as e:
             raise Exception(f'{prefix}Error loading data from {path_rgb,path_ir}: {e}\nSee {help_url}')
 
@@ -953,7 +956,7 @@ class LoadMultiModalImagesAndLabels(Dataset):  # for training/testing
                 x[:, 0] = 0
 
         n_rgb = len(shapes_rgb)  # number of images
-        bi_rgb = np.floor(np.arange(n_rgb) / batch_size).astype(np.int)  # batch index
+        bi_rgb = np.floor(np.arange(n_rgb) / batch_size).astype(np.int32)  # batch index
         nb_rgb = bi_rgb[-1] + 1  # number of batches
         self.batch_rgb = bi_rgb  # batch index of image
         self.n_rgb = n_rgb
@@ -972,7 +975,7 @@ class LoadMultiModalImagesAndLabels(Dataset):  # for training/testing
                 x[:, 0] = 0
 
         n_ir = len(shapes_ir)  # number of images
-        bi_ir = np.floor(np.arange(n_ir) / batch_size).astype(np.int)  # batch index
+        bi_ir = np.floor(np.arange(n_ir) / batch_size).astype(np.int32)  # batch index
         nb_ir = bi_ir[-1] + 1  # number of batches
         self.batch_ir = bi_ir  # batch index of image
         self.n_ir = n_ir
@@ -1029,7 +1032,7 @@ class LoadMultiModalImagesAndLabels(Dataset):  # for training/testing
                 elif mini > 1:
                     shapes_rgb[i] = [1, 1 / mini]
 
-            self.batch_shapes_rgb = np.ceil(np.array(shapes_rgb) * img_size / stride + pad).astype(np.int) * stride
+            self.batch_shapes_rgb = np.ceil(np.array(shapes_rgb) * img_size / stride + pad).astype(np.int32) * stride
 
             # IR
             # Sort by aspect ratio
@@ -1052,7 +1055,7 @@ class LoadMultiModalImagesAndLabels(Dataset):  # for training/testing
                 elif mini > 1:
                     shapes_ir[i] = [1, 1 / mini]
 
-            self.batch_shapes_ir = np.ceil(np.array(shapes_ir) * img_size / stride + pad).astype(np.int) * stride
+            self.batch_shapes_ir = np.ceil(np.array(shapes_ir) * img_size / stride + pad).astype(np.int32) * stride
 
         # Cache images into memory for faster training (WARNING: large datasets may exceed system RAM)
         self.imgs_rgb = [None] * n_rgb
@@ -2011,7 +2014,7 @@ def extract_boxes(path='../coco128/'):  # from utils.datasets import *; extract_
                     b = x[1:] * [w, h, w, h]  # box
                     # b[2:] = b[2:].max()  # rectangle to square
                     b[2:] = b[2:] * 1.2 + 3  # pad
-                    b = xywh2xyxy(b.reshape(-1, 4)).ravel().astype(np.int)
+                    b = xywh2xyxy(b.reshape(-1, 4)).ravel().astype(np.int32)
 
                     b[[0, 2]] = np.clip(b[[0, 2]], 0, w)  # clip boxes outside of image
                     b[[1, 3]] = np.clip(b[[1, 3]], 0, h)

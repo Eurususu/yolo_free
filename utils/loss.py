@@ -279,7 +279,11 @@ class v8DetectionLoss:
         device = next(model.parameters()).device  # get model device
         h = model.hyp  # hyperparameters
 
-        m = model.model[-1]  # Detect() module
+        # m = model.model[-1]  # Detect() module
+        if isinstance(model, torch.nn.DataParallel) or isinstance(model, torch.nn.parallel.DistributedDataParallel):
+            m = model.module.model[-1]
+        else:
+            m = model.model[-1]
         self.bce = nn.BCEWithLogitsLoss(reduction="none")
         self.hyp = h
         self.stride = m.stride  # model strides

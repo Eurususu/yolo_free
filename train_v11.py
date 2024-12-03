@@ -326,7 +326,7 @@ def train(hyp, opt, device, tb_writer=None):
 
             # Optimize
             if ni % accumulate == 0:
-                print(scaler.get_scale())
+                # print(scaler.get_scale())
                 scaler.unscale_(optimizer)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
                 scaler.step(optimizer)  # optimizer.step
@@ -360,10 +360,10 @@ def train(hyp, opt, device, tb_writer=None):
         # Scheduler
         lr = [x['lr'] for x in optimizer.param_groups]  # for tensorboard
         scheduler.step()
-        for name, param in model.named_parameters():
-            print(f"{name}: mean={param.data.mean()}, std={param.data.std()}")
-
-        global_var.set_value('s', torch.randperm(len(testdata)).tolist())
+        # for name, param in model.named_parameters():
+        #     print(f"{name}: mean={param.data.mean()}, std={param.data.std()}")
+        if rank in [-1, 0]:
+            global_var.set_value('s', torch.randperm(len(testdata)).tolist())
         # print(" TEST SAMPLER ")
         # print(list(testloader.sampler))
 
@@ -502,7 +502,7 @@ if __name__ == '__main__':
     parser.add_argument('--single-cls', action='store_true', help='train multi-class data as single-class')
     parser.add_argument('--adam', action='store_true', help='use torch.optim.Adam() optimizer')
     parser.add_argument('--sync-bn', action='store_true', help='use SyncBatchNorm, only available in DDP mode')
-    parser.add_argument('--local_rank', type=int, default=-1, help='DDP parameter, do not modify')
+    # parser.add_argument('--local_rank', type=int, default=-1, help='DDP parameter, do not modify')
     parser.add_argument('--workers', type=int, default=8, help='maximum number of dataloader workers')
     parser.add_argument('--project', default='runs/train', help='save to project/name')
     parser.add_argument('--entity', default=None, help='W&B entity')
@@ -527,6 +527,8 @@ if __name__ == '__main__':
     # Set DDP variables
     opt.world_size = int(os.environ['WORLD_SIZE']) if 'WORLD_SIZE' in os.environ else 1
     opt.global_rank = int(os.environ['RANK']) if 'RANK' in os.environ else -1
+    opt.local_rank = int(os.environ["LOCAL_RANK"]) if 'LOCAL_RANK' in os.environ else -1
+    print(f'world size is {opt.world_size}, rank is {opt.global_rank}, local_rank is {opt.local_rank}')
     set_logging(opt.global_rank)
     if opt.global_rank in [-1, 0]:
         # check_git_status()
@@ -575,7 +577,7 @@ if __name__ == '__main__':
             logger.info(f"{prefix}Start with 'tensorboard --logdir {opt.project}', view at http://localhost:6006/")
             tb_writer = SummaryWriter(opt.save_dir)  # Tensorboard
 
-            train(hyp, opt, device, tb_writer)
+        train(hyp, opt, device, tb_writer)
 
 
 
