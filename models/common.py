@@ -897,3 +897,219 @@ class PSABlock(nn.Module):
         x = x + self.attn(x) if self.add else self.attn(x)
         x = x + self.ffn(x) if self.add else self.ffn(x)
         return x
+
+
+class RepConv(nn.Module):
+    """
+    RepConv is a basic rep-style block, including training and deploy status.
+
+    This module is used in RT-DETR.
+    Based on https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py
+    """
+
+    default_act = nn.SiLU()  # default activation
+
+    def __init__(self, c1, c2, k=3, s=1, p=1, g=1, d=1, act=True, bn=False, deploy=False):
+        """Initializes Light Convolution layer with inputs, outputs & optional activation function."""
+        super().__init__()
+        assert k == 3 and p == 1
+        self.g = g
+        self.c1 = c1
+        self.c2 = c2
+        self.act = self.default_act if act is True else act if isinstance(act, nn.Module) else nn.Identity()
+
+        self.bn = nn.BatchNorm2d(num_features=c1) if bn and c2 == c1 and s == 1 else None
+        self.conv1 = Conv(c1, c2, k, s, p=p, g=g, act=False)
+        self.conv2 = Conv(c1, c2, 1, s, p=(p - k // 2), g=g, act=False)
+
+    def forward_fuse(self, x):
+        """Forward process."""
+        return self.act(self.conv(x))
+
+    def forward(self, x):
+        """Forward process."""
+        id_out = 0 if self.bn is None else self.bn(x)
+        return self.act(self.conv1(x) + self.conv2(x) + id_out)
+
+    def get_equivalent_kernel_bias(self):
+        """Returns equivalent kernel and bias by adding 3x3 kernel, 1x1 kernel and identity kernel with their biases."""
+        kernel3x3, bias3x3 = self._fuse_bn_tensor(self.conv1)
+        kernel1x1, bias1x1 = self._fuse_bn_tensor(self.conv2)
+        kernelid, biasid = self._fuse_bn_tensor(self.bn)
+        return kernel3x3 + self._pad_1x1_to_3x3_tensor(kernel1x1) + kernelid, bias3x3 + bias1x1 + biasid
+
+    @staticmethod
+    def _pad_1x1_to_3x3_tensor(kernel1x1):
+        """Pads a 1x1 tensor to a 3x3 tensor."""
+        if kernel1x1 is None:
+            return 0
+        else:
+            return torch.nn.functional.pad(kernel1x1, [1, 1, 1, 1])
+
+    def _fuse_bn_tensor(self, branch):
+        """Generates appropriate kernels and biases for convolution by fusing branches of the neural network."""
+        if branch is None:
+            return 0, 0
+        if isinstance(branch, Conv):
+            kernel = branch.conv.weight
+            running_mean = branch.bn.running_mean
+            running_var = branch.bn.running_var
+            gamma = branch.bn.weight
+            beta = branch.bn.bias
+            eps = branch.bn.eps
+        elif isinstance(branch, nn.BatchNorm2d):
+            if not hasattr(self, "id_tensor"):
+                input_dim = self.c1 // self.g
+                kernel_value = np.zeros((self.c1, input_dim, 3, 3), dtype=np.float32)
+                for i in range(self.c1):
+                    kernel_value[i, i % input_dim, 1, 1] = 1
+                self.id_tensor = torch.from_numpy(kernel_value).to(branch.weight.device)
+            kernel = self.id_tensor
+            running_mean = branch.running_mean
+            running_var = branch.running_var
+            gamma = branch.weight
+            beta = branch.bias
+            eps = branch.eps
+        std = (running_var + eps).sqrt()
+        t = (gamma / std).reshape(-1, 1, 1, 1)
+        return kernel * t, beta - running_mean * gamma / std
+
+    def fuse_convs(self):
+        """Combines two convolution layers into a single layer and removes unused attributes from the class."""
+        if hasattr(self, "conv"):
+            return
+        kernel, bias = self.get_equivalent_kernel_bias()
+        self.conv = nn.Conv2d(
+            in_channels=self.conv1.conv.in_channels,
+            out_channels=self.conv1.conv.out_channels,
+            kernel_size=self.conv1.conv.kernel_size,
+            stride=self.conv1.conv.stride,
+            padding=self.conv1.conv.padding,
+            dilation=self.conv1.conv.dilation,
+            groups=self.conv1.conv.groups,
+            bias=True,
+        ).requires_grad_(False)
+        self.conv.weight.data = kernel
+        self.conv.bias.data = bias
+        for para in self.parameters():
+            para.detach_()
+        self.__delattr__("conv1")
+        self.__delattr__("conv2")
+        if hasattr(self, "nm"):
+            self.__delattr__("nm")
+        if hasattr(self, "bn"):
+            self.__delattr__("bn")
+        if hasattr(self, "id_tensor"):
+            self.__delattr__("id_tensor")
+
+
+class RepBottleneck(Bottleneck_v11):
+    """Rep bottleneck."""
+
+    def __init__(self, c1, c2, shortcut=True, g=1, k=(3, 3), e=0.5):
+        """Initializes a RepBottleneck module with customizable in/out channels, shortcuts, groups and expansion."""
+        super().__init__(c1, c2, shortcut, g, k, e)
+        c_ = int(c2 * e)  # hidden channels
+        self.cv1 = RepConv(c1, c_, k[0], 1)
+
+
+class RepCSP(C3):
+    """Repeatable Cross Stage Partial Network (RepCSP) module for efficient feature extraction."""
+
+    def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5):
+        """Initializes RepCSP layer with given channels, repetitions, shortcut, groups and expansion ratio."""
+        super().__init__(c1, c2, n, shortcut, g, e)
+        c_ = int(c2 * e)  # hidden channels
+        self.m = nn.Sequential(*(RepBottleneck(c_, c_, shortcut, g, e=1.0) for _ in range(n)))
+
+
+class RepNCSPELAN4(nn.Module):
+    """CSP-ELAN."""
+
+    def __init__(self, c1, c2, c3, c4, n=1):
+        """Initializes CSP-ELAN layer with specified channel sizes, repetitions, and convolutions."""
+        super().__init__()
+        self.c = c3 // 2
+        self.cv1 = Conv(c1, c3, 1, 1)
+        self.cv2 = nn.Sequential(RepCSP(c3 // 2, c4, n), Conv(c4, c4, 3, 1))
+        self.cv3 = nn.Sequential(RepCSP(c4, c4, n), Conv(c4, c4, 3, 1))
+        self.cv4 = Conv(c3 + (2 * c4), c2, 1, 1)
+
+    def forward(self, x):
+        """Forward pass through RepNCSPELAN4 layer."""
+        y = list(self.cv1(x).chunk(2, 1))
+        y.extend((m(y[-1])) for m in [self.cv2, self.cv3])
+        return self.cv4(torch.cat(y, 1))
+
+    def forward_split(self, x):
+        """Forward pass using split() instead of chunk()."""
+        y = list(self.cv1(x).split((self.c, self.c), 1))
+        y.extend(m(y[-1]) for m in [self.cv2, self.cv3])
+        return self.cv4(torch.cat(y, 1))
+
+
+class ELAN1(RepNCSPELAN4):
+    """ELAN1 module with 4 convolutions."""
+
+    def __init__(self, c1, c2, c3, c4):
+        """Initializes ELAN1 layer with specified channel sizes."""
+        super().__init__(c1, c2, c3, c4)
+        self.c = c3 // 2
+        self.cv1 = Conv(c1, c3, 1, 1)
+        self.cv2 = Conv(c3 // 2, c4, 3, 1)
+        self.cv3 = Conv(c4, c4, 3, 1)
+        self.cv4 = Conv(c3 + (2 * c4), c2, 1, 1)
+
+
+class AConv(nn.Module):
+    """AConv."""
+
+    def __init__(self, c1, c2):
+        """Initializes AConv module with convolution layers."""
+        super().__init__()
+        self.cv1 = Conv(c1, c2, 3, 2, 1)
+
+    def forward(self, x):
+        """Forward pass through AConv layer."""
+        x = torch.nn.functional.avg_pool2d(x, 2, 1, 0, False, True)
+        return self.cv1(x)
+
+
+class ADown(nn.Module):
+    """ADown."""
+
+    def __init__(self, c1, c2):
+        """Initializes ADown module with convolution layers to downsample input from channels c1 to c2."""
+        super().__init__()
+        self.c = c2 // 2
+        self.cv1 = Conv(c1 // 2, self.c, 3, 2, 1)
+        self.cv2 = Conv(c1 // 2, self.c, 1, 1, 0)
+
+    def forward(self, x):
+        """Forward pass through ADown layer."""
+        x = torch.nn.functional.avg_pool2d(x, 2, 1, 0, False, True)
+        x1, x2 = x.chunk(2, 1)
+        x1 = self.cv1(x1)
+        x2 = torch.nn.functional.max_pool2d(x2, 3, 2, 1)
+        x2 = self.cv2(x2)
+        return torch.cat((x1, x2), 1)
+
+
+class SPPELAN(nn.Module):
+    """SPP-ELAN."""
+
+    def __init__(self, c1, c2, c3, k=5):
+        """Initializes SPP-ELAN block with convolution and max pooling layers for spatial pyramid pooling."""
+        super().__init__()
+        self.c = c3
+        self.cv1 = Conv(c1, c3, 1, 1)
+        self.cv2 = nn.MaxPool2d(kernel_size=k, stride=1, padding=k // 2)
+        self.cv3 = nn.MaxPool2d(kernel_size=k, stride=1, padding=k // 2)
+        self.cv4 = nn.MaxPool2d(kernel_size=k, stride=1, padding=k // 2)
+        self.cv5 = Conv(4 * c3, c2, 1, 1)
+
+    def forward(self, x):
+        """Forward pass through SPPELAN layer."""
+        y = [self.cv1(x)]
+        y.extend(m(y[-1]) for m in [self.cv2, self.cv3, self.cv4])
+        return self.cv5(torch.cat(y, 1))

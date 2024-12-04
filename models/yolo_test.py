@@ -492,6 +492,8 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
         if not scale:
             scale = tuple(scales.keys())[0]
         gd, gw, max_channels = scales[scale]
+    else:
+        gd, gw = 1, 1
     # na = (len(anchors[0]) // 2) if isinstance(anchors, list) else anchors  # number of anchors
     # no = na * (nc + 5)  # number of outputs = anchors * (classes + 5)
 
@@ -507,7 +509,7 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
 
         n = max(round(n * gd), 1) if n > 1 else n  # depth gain
         if m in [Conv, GhostConv, Bottleneck, GhostBottleneck, SPP, DWConv, MixConv2d, Focus, CrossConv, BottleneckCSP,
-                 C3, C3TR,  C3k2, C2PSA, SPP, SPPF, C2f, C2]:
+                 C3, C3TR,  C3k2, C2PSA, SPP, SPPF, C2f, C2, RepNCSPELAN4, ELAN1, ADown, AConv, SPPELAN]:
 
             if m is Focus:
                 c1, c2 = 3, args[0]
