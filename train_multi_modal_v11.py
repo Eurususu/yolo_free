@@ -499,7 +499,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', type=str, default='', help='initial weights path')
     parser.add_argument('--cfg', type=str, default='./models/transformer/yolov11s_fusion_transformer_vedai.yaml', help='model.yaml path')
-    parser.add_argument('--data', type=str, default='./data/multispectral/bird_11.19.yaml', help='data.yaml path')
+    parser.add_argument('--data', type=str, default='./data/multispectral/bird_distri.yaml', help='data.yaml path')
     parser.add_argument('--hyp', type=str, default='data/hyp.scratch_v11.yaml', help='hyperparameters path')
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--batch-size', type=int, default=16, help='total batch size for all GPUs')
@@ -552,7 +552,8 @@ if __name__ == '__main__':
         check_requirements()
 
     # Resume
-    wandb_run = check_wandb_resume(opt)
+    # wandb_run = check_wandb_resume(opt)
+    wandb_run =False
     if opt.resume and not wandb_run:  # resume an interrupted run
         ckpt = opt.resume if isinstance(opt.resume, str) else get_latest_run()  # specified or most recent path
         assert os.path.isfile(ckpt), 'ERROR: --resume checkpoint does not exist'
@@ -594,7 +595,7 @@ if __name__ == '__main__':
             logger.info(f"{prefix}Start with 'tensorboard --logdir {opt.project}', view at http://localhost:6006/")
             tb_writer = SummaryWriter(opt.save_dir)  # Tensorboard
 
-            train_rgb_ir(hyp, opt, device, tb_writer)
+        train_rgb_ir(hyp, opt, device, tb_writer)
 
 
 

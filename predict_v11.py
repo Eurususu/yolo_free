@@ -5,7 +5,8 @@ import numpy as np
 from pathlib import Path
 import argparse
 import os
-from utils.general import scale_coords, non_max_suppression
+from utils.general import scale_coords
+from utils.ops import non_max_suppression_v11
 from utils.torch_utils import time_synchronized
 from utils.datasets import letterbox
 from utils.plots import colors, plot_one_box
@@ -102,9 +103,9 @@ def process_video(opt, video_path, model):
         if img1.ndimension() == 3:
             img1 = img1.unsqueeze(0)
         t1 = time_synchronized()
-        pred = model(img, img1, augment=False)[0]
+        pred = model(img, img1, augment=False)
         # Apply NMS
-        pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
+        pred = non_max_suppression_v11(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms, max_det=opt.max_det)
         t2 = time_synchronized()
         # Print time (inference + NMS)
         print(f'({t2 - t1:.6f}s, {1 / (t2 - t1):.6f}Hz)')
@@ -151,6 +152,7 @@ if __name__ == '__main__':
     parser.add_argument('--line-thickness', default=2, type=int, help='bounding box thickness (pixels)')
     parser.add_argument('--hide-labels', default=False, action='store_true', help='hide labels')
     parser.add_argument('--hide-conf', default=True, action='store_true', help='hide confidences')
+    parser.add_argument('--max-det',type=int, default=300, help='the max count detected')
     opt = parser.parse_args()
     model = attempt_load(opt.weights, map_location='cuda')
     model.half()

@@ -1,0 +1,11 @@
+# train and val data as 1) directory: path/images/, 2) file: path/images.txt, or 3) list: [path1/images/, path2/images/]
+train_rgb: /workspace/project/yolo_free/bird/train_rgb.txt  # 128 images
+val_rgb: /workspace/project/yolo_free/bird/val_rgb.txt  # 128 images
+train_ir: /workspace/project/yolo_free/bird/train_diff.txt  # 128 images
+val_ir: /workspace/project/yolo_free/bird/val_diff.txt  # 128 images
+
+# number of classes
+nc: 1
+
+# class names
+names: ['bird']

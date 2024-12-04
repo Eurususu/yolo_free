@@ -16,10 +16,10 @@ def create_yolo_data_list(images_dir, output_file):
 
 
 # 设置图片文件夹路径和输出文件路径
-train_images_dir = '/workspace/project/multispectral-object-detection/bird/images/train'
-val_images_dir = '/workspace/project/multispectral-object-detection/bird/images/val'
-train_output_file = '/workspace/project/multispectral-object-detection/bird/train.txt'
-val_output_file = '/workspace/project/multispectral-object-detection/bird/val.txt'
+train_images_dir = '/workspace/project/yolo_free/bird/image/train'
+val_images_dir = '/workspace/project/yolo_free/bird/image/val'
+train_output_file = '/workspace/project/yolo_free/bird/train_diff.txt'
+val_output_file = '/workspace/project/yolo_free/bird/val_diff.txt'
 
 # 生成 train.txt 和 val.txt
 create_yolo_data_list(train_images_dir, train_output_file)
