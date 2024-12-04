@@ -492,7 +492,7 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
         if not scale:
             scale = tuple(scales.keys())[0]
         gd, gw, max_channels = scales[scale]
-    else:
+    if gd is None or gw is None:
         gd, gw = 1, 1
     # na = (len(anchors[0]) // 2) if isinstance(anchors, list) else anchors  # number of anchors
     # no = na * (nc + 5)  # number of outputs = anchors * (classes + 5)
