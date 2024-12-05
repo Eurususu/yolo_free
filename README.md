@@ -152,4 +152,23 @@ Miss Rate - FPPI curve
 
 https://github.com/ultralytics/yolov5
 
+### 各个脚本的作用
+yolov3 yolov5 对应`train.py` `train_multi_modal.py` `test.py` `predict.py`脚本
+
+yolov6 yolov8 yolov9 yolov11对应`train_v11.py` `train_multi_modal_v11.py` `test_v11.py` `predict_v11.py`脚本
+
+其中models/yolo中的Model对应单模态模型，models/yolotest中的Model对应多模态模型
+
+### 多模态的模型三种解决方案
+
+第一种是add相加，如：`yolov5s_fusion_add.yaml`
+
+第二种是MPF，如：`PC2f_MPF_yolov8.yaml`
+
+第三种是transformer CFT融合：`yolov5s_fusion_transformer.yaml`
+
+### DDP多机多卡训练
+在这个rep已经支持检测模型的多机多卡训练，使用torchrun的方式进行。如果需要检测nccl是否正常
+可以使用`test_dist.py`这个脚本测试。
+
   
