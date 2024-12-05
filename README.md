@@ -37,29 +37,6 @@ Extensive experiments and ablation studies on multiple datasets demonstrate that
 <img src="https://github.com/DocF/multispectral-object-detection/blob/main/cft.png" width="800">
 </div>
 
-## Citation
-If you use this repo for your research, please cite our paper:
-
-```
-@article{qingyun2022cross,
-  title={Cross-modality attentive feature fusion for object detection in multispectral remote sensing imagery},
-  author={Qingyun, Fang and Zhaokui, Wang},
-  journal={Pattern Recognition},
-  volume={130},
-  pages={108786},
-  year={2022},
-  publisher={Elsevier}
-}
-@article{fang2021cross,
-  title={Cross-Modality Fusion Transformer for Multispectral Object Detection},
-  author={Fang Qingyun and Han Dapeng and Wang Zhaokui},
-  journal={arXiv preprint arXiv:2111.00273},
-  year={2021}
-}
-```
-
-
-
 ## Installation 
 Python>=3.6.0 is required with all requirements.txt installed including PyTorch>=1.7 (The same as yolov5 https://github.com/ultralytics/yolov5 ).
 
@@ -68,7 +45,6 @@ Python>=3.6.0 is required with all requirements.txt installed including PyTorch>
   
 #### Install requirements
  ```bash
-$ cd  multispectral-object-detection
 $ pip install -r requirements.txt
 ```
 
@@ -113,13 +89,6 @@ some example in models/transformer/
 
 note!!!   we used xxxx_transfomerx3_dataset.yaml in our paper.
 
-### Train Test and Detect
-train: ``` python train.py```
-
-test: ``` python test.py```
-
-detect: ``` python detect_twostream.py```
-
 ## Results
 
 |Dataset|CFT|mAP50|mAP75|mAP|
@@ -148,11 +117,7 @@ Miss Rate - FPPI curve
 <img src="https://github.com/DocF/multispectral-object-detection/blob/main/MR.png" width="500">
 </div>
 
-#### References
-
-https://github.com/ultralytics/yolov5
-
-### 各个脚本的作用
+### Train Test and Detect
 yolov3 yolov5 对应`train.py` `train_multi_modal.py` `test.py` `predict.py`脚本
 
 yolov6 yolov8 yolov9 yolov11对应`train_v11.py` `train_multi_modal_v11.py` `test_v11.py` `predict_v11.py`脚本
