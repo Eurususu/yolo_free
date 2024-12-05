@@ -396,13 +396,13 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
 
         n = max(round(n * gd), 1) if n > 1 else n  # depth gain
         if m in [Conv, GhostConv, Bottleneck, GhostBottleneck, SPP, DWConv, MixConv2d, Focus, CrossConv, BottleneckCSP,
-                 C3, C3TR,  C3k2, C2PSA, SPP, SPPF, C2f, C2, RepNCSPELAN4, ELAN1, ADown, AConv, SPPELAN]:
+                 C3, C3TR,  C3k2, C2PSA, SPP, SPPF, C2f, C2, RepNCSPELAN4, ELAN1, ADown, AConv, SPPELAN, C2f_Faster]:
             c1, c2 = ch[f], args[0]
             if c2 != nc:  # if not output
                 c2 = make_divisible(min(c2, max_channels) * gw, 8)
 
             args = [c1, c2, *args[1:]]
-            if m in [BottleneckCSP, C3, C3TR, C3k2, C2PSA, C2f, C2]:
+            if m in [BottleneckCSP, C3, C3TR, C3k2, C2PSA, C2f, C2, C2f_Faster]:
                 args.insert(2, n)  # number of repeats
                 n = 1
             if m is C3k2:  # for M/L/X sizes

@@ -143,7 +143,7 @@ def process_video(opt, video_path, model):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', type=str, default='weights/yolov11_multi_v1/weights/best.pt', help='object confidence threshold')
+    parser.add_argument('--weights', type=str, default='weights/best.pt', help='object confidence threshold')
     parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --class 0, or --class 0 2 3')
     parser.add_argument('--conf-thres', type=float, default=0.4, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.45, help='IOU threshold for NMS')
