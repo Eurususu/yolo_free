@@ -124,13 +124,11 @@ yolov6 yolov8 yolov9 yolov11对应`train_v11.py` `train_multi_modal_v11.py` `tes
 
 其中models/yolo中的Model对应单模态模型，models/yolotest中的Model对应多模态模型
 
-### 多模态的模型三种解决方案
+### 多模态的模型两种解决方案
 
-第一种是add相加，如：`yolov5s_fusion_add.yaml`
+第一种是add相加，如：`yolov5s_fusion_add.yaml` `PC2f_MPF_yolov8.yaml`
 
-第二种是MPF，如：`PC2f_MPF_yolov8.yaml`
-
-第三种是transformer CFT融合：`yolov5s_fusion_transformer.yaml`
+第二种是transformer CFT融合：`yolov5s_fusion_transformer.yaml`
 
 ### DDP多机多卡训练
 在这个rep已经支持检测模型的多机多卡训练，使用torchrun的方式进行。如果需要检测nccl是否正常

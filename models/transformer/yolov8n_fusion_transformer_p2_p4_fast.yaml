@@ -47,48 +47,38 @@ backbone:
   # stream one
   - [14, 1, Conv, [512, 3, 2]] # 16-P4/16
   - [-1, 6, C2f, [512, True]] # 17-P4/16
+  - [-1, 1, SPPF, [512, 5]] # 18-P4/16
   # stream two
-  - [ 15, 1, Conv, [ 512, 3, 2 ] ] # 18-P4/16
-  - [ -1, 6, C2f_Faster, [ 512, True ] ] # 19-P4/16
+  - [ 15, 1, Conv, [ 512, 3, 2 ] ] # 19-P4/16
+  - [ -1, 6, C2f_Faster, [ 512, True ] ] # 20-P4/16
+  - [-1, 1, SPPF, [512, 5]] # 21-P4/16
   # transformer fusion
-  - [ [ 17,19 ], 1, GPT, [ 512 ] ]   # 20-P3/8
-  - [ [ 17,20 ], 1, Add2, [ 512,0 ] ]    # 21-P3/8 stream one x+trans[0]
-  - [ [ 19,20 ], 1, Add2, [ 512,1 ] ]    # 22-P3/8 stream two x+trans[1]
-  ######### TransformerBlock Four #############
-  # stream one
-  - [-2, 1, Conv, [1024, 3, 2]] # 23-P5/32
-  - [-1, 3, C2f, [1024, True]] # 24-P5/32
-  - [-1, 1, SPPF, [1024, 5]] # 25-P5/32
-  # stream2
-  - [ 22, 1, Conv, [ 1024, 3, 2 ] ] # 26-P5/32
-  - [ -1, 3, C2f_Faster, [ 1024, True ] ] # 27-P5/32
-  - [ -1, 1, SPPF, [ 1024, 5 ] ] # 28-P5/32
-
-  # transformer fusion
-  - [ [ 25,28 ], 1, GPT, [ 1024 ] ]    # 29-P5/32
-  - [ [ 25,29 ], 1, Add2, [ 1024,0 ] ]    # 30-P5/32 stream one x+trans[0]
-  - [ [ 28,29 ], 1, Add2, [ 1024,1 ] ]    # 31-P5/32 stream two x+trans[1]
+  - [ [ 18,21 ], 1, GPT, [ 512 ] ]   # 22-P4/16
+  - [ [ 18,22 ], 1, Add2, [ 512,0 ] ]    # 23-P4/16 stream one x+trans[0]
+  - [ [ 21,22 ], 1, Add2, [ 512,1 ] ]    # 24-P4/16 stream two x+trans[1]
   ######### Add Block #############
-  - [ [ 14,15 ], 1, Add, [ 1 ] ]   # 32-P3/8 fusion backbone P3
-  - [ [ 21,22 ], 1, Add, [ 1 ] ]   # 33-P4/16 fusion backbone P4
-  - [ [ 30,31 ], 1, Add, [ 1 ] ]   # 34-P5/32 fusion backbone P5
+  - [ [ 7,8 ], 1, Add, [ 1 ] ]   # 25-P3/4 fusion backbone P2
+  - [ [ 14,15 ], 1, Add, [ 1 ] ]   # 26-P3/8 fusion backbone P3
+  - [ [ 23,24 ], 1, Add, [ 1 ] ]   # 27-P4/16 fusion backbone P4
 
 # YOLO11n head
 head:
-  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 35
-  - [[-1, 33], 1, Concat, [1]] # 36 cat backbone P4
-  - [-1, 3, C2f, [512]] # 37
 
-  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 38
-  - [[-1, 32], 1, Concat, [1]] # 39 cat backbone P3
-  - [-1, 3, C2f, [256]] # 40 (P3/8-small)
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 28
+  - [[-1, 26], 1, Concat, [1]] # 29 cat backbone P3
+  - [-1, 3, C2f, [256]] # 30 (P3/8-small)
 
-  - [-1, 1, Conv, [256, 3, 2]] # 41
-  - [[-1, 37], 1, Concat, [1]] # 42 cat head P4
-  - [-1, 3, C2f, [512]] # 43 (P4/16-medium)
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 31
+  - [[-1, 25], 1, Concat, [1]] # 32 cat backbone P2
+  - [-1, 3, C2f, [128]] # 33(P2/4-xsmall)
 
-  - [-1, 1, Conv, [512, 3, 2]] # 44
-  - [[-1, 34], 1, Concat, [1]] # 45 cat head P5
-  - [-1, 3, C2f, [1024]] # 46 (P5/32-large)
+  - [ -1, 1, Conv, [ 128, 3, 2 ] ] # 34
+  - [ [ -1, 30 ], 1, Concat, [ 1 ] ] # 35 cat head P3
+  - [ -1, 3, C2f, [ 256 ] ] # 36 (P3/8-small)
 
-  - [[40, 43, 46], 1, Detect_yolov11, [nc]] # 49 Detect(P3, P4, P5)
+  - [-1, 1, Conv, [256, 3, 2]] # 37
+  - [[-1, 27], 1, Concat, [1]] # 38 cat head P4
+  - [-1, 3, C2f, [512]] # 39 (P4/16-medium)
+
+
+  - [[33, 36, 39], 1, Detect_yolov11, [nc]] # 40 Detect(P2, P3, P4)

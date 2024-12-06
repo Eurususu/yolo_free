@@ -23,37 +23,37 @@ backbone:
   # stream one
   - [-1, 1, Conv, [64, 3, 2]] # 0-P1/2
   - [-1, 1, Conv, [128, 3, 2]] # 1-P2/4
-  - [-1, 2, C3k2, [128, False, 0.25]]
+  - [-1, 2, C3k2, [256, False, 0.25]]
   # stream two
   - [-4, 1, Conv, [64, 3, 2]] # 3-P1/2
   - [ -1, 1, Conv, [ 128, 3, 2 ] ] # 4-P2/4
-  - [ -1, 2, C3k2, [ 128, False, 0.25 ] ] # 5-P2/4
+  - [ -1, 2, C3k2, [ 256, False, 0.25 ] ] # 5-P2/4
   # transformer fusion
-  - [ [ 2,5 ], 1, GPT, [ 128 ] ] # 6-P2/4
-  - [ [ 2,6 ], 1, Add2, [ 128,0 ] ]  # 7-P2/4 stream one:x+trans[0]
-  - [ [ 5,6 ], 1, Add2, [ 128,1 ] ]  # 8-P2/4 stream two:x+trans[1]
+  - [ [ 2,5 ], 1, GPT, [ 256 ] ] # 6-P2/4
+  - [ [ 2,6 ], 1, Add2, [ 256,0 ] ]  # 7-P2/4 stream one:x+trans[0]
+  - [ [ 5,6 ], 1, Add2, [ 256,1 ] ]  # 8-P2/4 stream two:x+trans[1]
   ######### TransformerBlock Two #############
   # stream one
   - [7, 1, Conv, [256, 3, 2]] # 9-P3/8
-  - [-1, 2, C3k2, [256, False, 0.25]] # 10-P3/8
+  - [-1, 2, C3k2, [512, False, 0.25]] # 10-P3/8
   # stream two
   - [ 8, 1, Conv, [ 256, 3, 2 ] ] # 11-P3/8
-  - [ -1, 2, C3k2, [ 256, False, 0.25 ] ] # 12-P3/8
+  - [ -1, 2, C3k2, [ 512, False, 0.25 ] ] # 12-P3/8
   # transformer fusion
-  - [ [ 10,12 ], 1, GPT, [ 256 ] ]   # 13-P3/8
-  - [ [ 10,13 ], 1, Add2, [ 256,0 ] ]    # 14-P3/8 stream one x+trans[0]
-  - [ [ 12,13 ], 1, Add2, [ 256,1 ] ]    # 15-P3/8 stream two x+trans[1]
+  - [ [ 10,12 ], 1, GPT, [ 512 ] ]   # 13-P3/8
+  - [ [ 10,13 ], 1, Add2, [ 512,0 ] ]    # 14-P3/8 stream one x+trans[0]
+  - [ [ 12,13 ], 1, Add2, [ 512,1 ] ]    # 15-P3/8 stream two x+trans[1]
   ######### TransformerBlock Three #############
   # stream one
   - [14, 1, Conv, [512, 3, 2]] # 16-P4/16
-  - [-1, 2, C3k2, [512, True]] # 17-P4/16
+  - [-1, 2, C3k2, [1024, True]] # 17-P4/16
   # stream two
   - [ 15, 1, Conv, [ 512, 3, 2 ] ] # 18-P4/16
-  - [ -1, 2, C3k2, [ 512, True ] ] # 19-P4/16
+  - [ -1, 2, C3k2, [ 1024, True ] ] # 19-P4/16
   # transformer fusion
-  - [ [ 17,19 ], 1, GPT, [ 512 ] ]   # 20-P3/8
-  - [ [ 17,20 ], 1, Add2, [ 512,0 ] ]    # 21-P3/8 stream one x+trans[0]
-  - [ [ 19,20 ], 1, Add2, [ 512,1 ] ]    # 22-P3/8 stream two x+trans[1]
+  - [ [ 17,19 ], 1, GPT, [ 1024 ] ]   # 20-P3/8
+  - [ [ 17,20 ], 1, Add2, [ 1024,0 ] ]    # 21-P3/8 stream one x+trans[0]
+  - [ [ 19,20 ], 1, Add2, [ 1024,1 ] ]    # 22-P3/8 stream two x+trans[1]
   ######### TransformerBlock Four #############
   # stream one
   - [-2, 1, Conv, [1024, 3, 2]] # 23-P5/32

@@ -69,26 +69,35 @@ backbone:
   - [ [ 25,29 ], 1, Add2, [ 1024,0 ] ]    # 30-P5/32 stream one x+trans[0]
   - [ [ 28,29 ], 1, Add2, [ 1024,1 ] ]    # 31-P5/32 stream two x+trans[1]
   ######### Add Block #############
-  - [ [ 14,15 ], 1, Add, [ 1 ] ]   # 32-P3/8 fusion backbone P3
-  - [ [ 21,22 ], 1, Add, [ 1 ] ]   # 33-P4/16 fusion backbone P4
-  - [ [ 30,31 ], 1, Add, [ 1 ] ]   # 34-P5/32 fusion backbone P5
+  - [ [ 7,8 ], 1, Add, [ 1 ] ]   # 32-P3/4 fusion backbone P2
+  - [ [ 14,15 ], 1, Add, [ 1 ] ]   # 33-P3/8 fusion backbone P3
+  - [ [ 21,22 ], 1, Add, [ 1 ] ]   # 34-P4/16 fusion backbone P4
+  - [ [ 30,31 ], 1, Add, [ 1 ] ]   # 35-P5/32 fusion backbone P5
 
 # YOLO11n head
 head:
-  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 35
-  - [[-1, 33], 1, Concat, [1]] # 36 cat backbone P4
-  - [-1, 3, C2f, [512]] # 37
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 36
+  - [[-1, 34], 1, Concat, [1]] # 37 cat backbone P4
+  - [-1, 3, C2f, [512]] # 38
 
-  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 38
-  - [[-1, 32], 1, Concat, [1]] # 39 cat backbone P3
-  - [-1, 3, C2f, [256]] # 40 (P3/8-small)
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 39
+  - [[-1, 33], 1, Concat, [1]] # 40 cat backbone P3
+  - [-1, 3, C2f, [256]] # 41 (P3/8-small)
 
-  - [-1, 1, Conv, [256, 3, 2]] # 41
-  - [[-1, 37], 1, Concat, [1]] # 42 cat head P4
-  - [-1, 3, C2f, [512]] # 43 (P4/16-medium)
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 42
+  - [[-1, 32], 1, Concat, [1]] # 43 cat backbone P2
+  - [-1, 3, C2f, [128]] # 44(P2/4-xsmall)
 
-  - [-1, 1, Conv, [512, 3, 2]] # 44
-  - [[-1, 34], 1, Concat, [1]] # 45 cat head P5
-  - [-1, 3, C2f, [1024]] # 46 (P5/32-large)
+  - [ -1, 1, Conv, [ 128, 3, 2 ] ] # 45
+  - [ [ -1, 41 ], 1, Concat, [ 1 ] ] # 46 cat head P3
+  - [ -1, 3, C2f, [ 256 ] ] # 47 (P3/8-small)
 
-  - [[40, 43, 46], 1, Detect_yolov11, [nc]] # 49 Detect(P3, P4, P5)
+  - [-1, 1, Conv, [256, 3, 2]] # 48
+  - [[-1, 38], 1, Concat, [1]] # 49 cat head P4
+  - [-1, 3, C2f, [512]] # 50 (P4/16-medium)
+
+  - [-1, 1, Conv, [512, 3, 2]] # 51
+  - [[-1, 35], 1, Concat, [1]] # 52 cat head P5
+  - [-1, 3, C2f, [1024]] # 53 (P5/32-large)
+
+  - [[44, 47, 50, 53], 1, Detect_yolov11, [nc]] # 54 Detect(P2, P3, P4, P5)

@@ -198,8 +198,8 @@ class Model(nn.Module):
         if isinstance(m, Detect):
             s = 256  # 2x min stride
             # print("1, ch, s, s", 1, ch, s, s)
-            # m.stride = torch.tensor([s / x.shape[-2] for x in self.forward(torch.zeros(1, ch, s, s), torch.zeros(1, ch, s, s))])  # forward
-            m.stride = torch.Tensor([8.0, 16.0, 32.0])
+            m.stride = torch.tensor([s / x.shape[-2] for x in self.forward(torch.zeros(1, ch, s, s), torch.zeros(1, ch, s, s))])  # forward
+            # m.stride = torch.Tensor([8.0, 16.0, 32.0])
             # print("m.stride", m.stride)
             m.anchors /= m.stride.view(-1, 1, 1)
             check_anchor_order(m)
@@ -207,7 +207,9 @@ class Model(nn.Module):
             self._initialize_biases()  # only run once
             # logger.info('Strides: %s' % m.stride.tolist())
         elif isinstance(m, Detect_yolov11):
-            m.stride = torch.Tensor([8.0, 16.0, 32.0])
+            s = 256
+            m.stride = torch.tensor([s / x.shape[-2] for x in self.forward(torch.zeros(1, ch, s, s), torch.zeros(1, ch, s, s))])
+            # m.stride = torch.Tensor([8.0, 16.0, 32.0])
             self.stride = m.stride
             m.bias_init()
 
