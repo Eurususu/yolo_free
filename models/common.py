@@ -1115,35 +1115,35 @@ class SPPELAN(nn.Module):
         return self.cv5(torch.cat(y, 1))
 
 
-class Partial_conv3(nn.Module):
-    def __init__(self, dim, n_div=4, forward='split_cat'):
-        super().__init__()
-        self.dim_conv3 = dim // n_div
-        self.dim_untouched = dim - self.dim_conv3
-        self.partial_conv3 = nn.Conv2d(self.dim_conv3, self.dim_conv3, 3, 1, 1, bias=False)
-
-        if forward == 'slicing':
-            self.forward = self.forward_slicing
-        elif forward == 'split_cat':
-            self.forward = self.forward_split_cat
-        else:
-            raise NotImplementedError
-
-    def forward_slicing(self, x):
-        # only for inference
-        x = x.clone()  # !!! Keep the original input intact for the residual connection later
-        x[:, :self.dim_conv3, :, :] = self.partial_conv3(x[:, :self.dim_conv3, :, :])
-        return x
-
-    def forward_split_cat(self, x):
-        # for training/inference
-        # x = x.clone()  # !!! Keep the original input intact for the residual connection later
-        # x[:, :self.dim_conv3, :, :] = self.partial_conv3(x[:, :self.dim_conv3, :, :])
-        # return x
-        x1, x2 = torch.split(x, [self.dim_conv3, self.dim_untouched], dim=1)
-        x1 = self.partial_conv3(x1)
-        x = torch.cat((x1, x2), 1)
-        return x
+# class Partial_conv3(nn.Module):
+#     def __init__(self, dim, n_div=4, forward='split_cat'):
+#         super().__init__()
+#         self.dim_conv3 = dim // n_div
+#         self.dim_untouched = dim - self.dim_conv3
+#         self.partial_conv3 = nn.Conv2d(self.dim_conv3, self.dim_conv3, 3, 1, 1, bias=False)
+#
+#         if forward == 'slicing':
+#             self.forward = self.forward_slicing
+#         elif forward == 'split_cat':
+#             self.forward = self.forward_split_cat
+#         else:
+#             raise NotImplementedError
+#
+#     def forward_slicing(self, x):
+#         # only for inference
+#         x = x.clone()  # !!! Keep the original input intact for the residual connection later
+#         x[:, :self.dim_conv3, :, :] = self.partial_conv3(x[:, :self.dim_conv3, :, :])
+#         return x
+#
+#     def forward_split_cat(self, x):
+#         # for training/inference
+#         # x = x.clone()  # !!! Keep the original input intact for the residual connection later
+#         # x[:, :self.dim_conv3, :, :] = self.partial_conv3(x[:, :self.dim_conv3, :, :])
+#         # return x
+#         x1, x2 = torch.split(x, [self.dim_conv3, self.dim_untouched], dim=1)
+#         x1 = self.partial_conv3(x1)
+#         x = torch.cat((x1, x2), 1)
+#         return x
 
 
 class Faster_Block(nn.Module):
@@ -1159,6 +1159,8 @@ class Faster_Block(nn.Module):
         super().__init__()
 
         self.dim = dim
+        self.dim_conv3 = dim // n_div
+        self.dim_untouched = dim - self.dim_conv3
         self.mlp_ratio = mlp_ratio
         # self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
         self.n_div = n_div
@@ -1171,12 +1173,13 @@ class Faster_Block(nn.Module):
         ]
 
         self.mlp = nn.Sequential(*mlp_layer)
+        self.conv1 = nn.Conv2d(self.dim_conv3, self.dim_conv3, 3, 1, 1, bias=False)
 
-        self.spatial_mixing = Partial_conv3(
-            dim,
-            n_div,
-            pconv_fw_type
-        )
+        # self.spatial_mixing = Partial_conv3(
+        #     dim,
+        #     n_div,
+        #     pconv_fw_type
+        # )
 
         # self.adjust_channel = None
         # if inc != dim:
@@ -1192,14 +1195,20 @@ class Faster_Block(nn.Module):
         # if self.adjust_channel is not None:
         #     x = self.adjust_channel(x)
         # shortcut = x
-        x = self.spatial_mixing(x)
+        # x = self.spatial_mixing(x)
+        x1, x2 = torch.split(x, [self.dim_conv3, self.dim_untouched], dim=1)
+        x1 = self.conv1(x1)
+        x = torch.cat((x1, x2), 1)
         # x = shortcut + self.drop_path(self.mlp(x))
 
         return self.mlp(x)
 
     def forward_layer_scale(self, x):
         # shortcut = x
-        x = self.spatial_mixing(x)
+        # x = self.spatial_mixing(x)
+        x1, x2 = torch.split(x, [self.dim_conv3, self.dim_untouched], dim=1)
+        x1 = self.conv1(x1)
+        x = torch.cat((x1, x2), 1)
         # x = shortcut + self.drop_path(
         #     self.layer_scale.unsqueeze(-1).unsqueeze(-1) * self.mlp(x))
         return x
@@ -1218,15 +1227,3 @@ class RIFusion(nn.Module):
 
     def forward(self, x):
         return x
-
-
-class ADD(nn.Module):
-    #  Add two tensors
-
-    def __init__(self, arg):
-        super(ADD, self).__init__()
-        # 128 256 512
-        self.arg = arg
-
-    def forward(self, x):
-        return torch.add(x[0], x[1])

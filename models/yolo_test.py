@@ -579,103 +579,103 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
     return nn.Sequential(*layers), sorted(save)
 
 
-def parse_model_rgb_ir(d, ch):  # model_dict, input_channels(3)
-    logger.info('\n%3s%18s%3s%10s  %-40s%-30s' % ('', 'from', 'n', 'params', 'module', 'arguments'))
-    max_channels = float("inf")
-    legacy = True
-    anchors, nc, gd, gw = d.get('anchors'), d.get('nc'), d.get('depth_multiple'), d.get('width_multiple')
-    scales = d.get('scales')
-    if scales:
-        scale = d.get("scale")
-        if not scale:
-            scale = tuple(scales.keys())[0]
-        gd, gw, max_channels = scales[scale]
-    # na = (len(anchors[0]) // 2) if isinstance(anchors, list) else anchors  # number of anchors
-    # no = na * (nc + 5)  # number of outputs = anchors * (classes + 5)
-
-    layers, save, c2 =  [], [], ch[-1]  # layers, savelist, ch out
-
-    for i, (f, n, m, args) in enumerate(d['backbone']+ d['head']):  # from, number, module, args
-        m = eval(m) if isinstance(m, str) else m  # eval strings
-        for j, a in enumerate(args):
-            try:
-                args[j] = eval(a) if isinstance(a, str) else a  # eval strings
-            except:
-                pass
-
-        n = max(round(n * gd), 1) if n > 1 else n  # depth gain
-        if m in [Conv, GhostConv, Bottleneck, GhostBottleneck, SPP, DWConv, MixConv2d, Focus, CrossConv, BottleneckCSP,
-                 C3, C3TR, C3k2, C2PSA, SPP, SPPF]:
-            c1, c2 = ch[f], args[0]
-            if c2 != nc:  # if not output
-                c2 = make_divisible(min(c2, max_channels) * gw, 8)
-
-            args = [c1, c2, *args[1:]]
-            if m in [BottleneckCSP, C3, C3TR, C3k2, C2PSA]:
-                args.insert(2, n)  # number of repeats
-                n = 1
-            if m is C3k2:  # for M/L/X sizes
-                legacy = False
-                if scale in "mlx":
-                    args[3] = True
-        elif m is nn.BatchNorm2d:
-            args = [ch[f]]
-        elif m is Concat:
-            c2 = sum([ch[x] for x in f])
-        elif m is Detect:
-            args.append([ch[x] for x in f])
-            if isinstance(args[1], int):  # number of anchors
-                args[1] = [list(range(args[1] * 2))] * len(f)
-        elif m is Contract:
-            c2 = ch[f] * args[0] ** 2
-        elif m is Expand:
-            c2 = ch[f] // args[0] ** 2
-        elif m is Detect_yolov11:
-            args.append([ch[x] for x in f])
-            m.legacy = legacy
-        else:
-            c2 = ch[f]
-
-        m_ = nn.Sequential(*[m(*args) for _ in range(n)]) if n > 1 else m(*args)  # module
-        t = str(m)[8:-2].replace('__main__.', '')  # module type
-        np = sum([x.numel() for x in m_.parameters()])  # number params
-        m_.i, m_.f, m_.type, m_.np = i, f, t, np  # attach index, 'from' index, type, number params
-        logger.info('%3s%18s%3s%10.0f  %-40s%-30s' % (i, f, n, np, t, args))  # print
-        save.extend(x % i for x in ([f] if isinstance(f, int) else f) if x != -1)  # append to savelist
-        layers.append(m_)
-        if i == 0:
-            ch = []
-        ch.append(c2)
-
-
-    layers_rgb = layers[:4].copy()
-    layer_ir = layers[:4].copy()
-    rgb_stream = nn.Sequential(*layers_rgb)
-    ir_stream = nn.Sequential(*layer_ir)
-
-    # 以concat为界，分割模型
-    my_layer = []
-    for i in range(4, len(layers)):
-        my_layer.append([layers[i]].copy())
-
-    # print("My Layer")
-    # print(len(my_layer))
-    # for i in range(len(my_layer)):
-    #     print(my_layer[i])
-    # layer_4 = layers[4].copy()
-    # layer_5 = layers[5].copy()
-    # layers_rest = layers[4:].copy()
-    # rest_net = nn.Sequential(*layers_rest)
-    # print(rest_net)
-    # print(" REST Net")
-    # print(rest_net)
-
-    model = TwostreamNet(rgb_stream, ir_stream, my_layer)
-    print("Two Stream Model")
-    print(model)
-
-    # return nn.Sequential(*layers), sorted(save)
-    return model, sorted(save)
+# def parse_model_rgb_ir(d, ch):  # model_dict, input_channels(3)
+#     logger.info('\n%3s%18s%3s%10s  %-40s%-30s' % ('', 'from', 'n', 'params', 'module', 'arguments'))
+#     max_channels = float("inf")
+#     legacy = True
+#     anchors, nc, gd, gw = d.get('anchors'), d.get('nc'), d.get('depth_multiple'), d.get('width_multiple')
+#     scales = d.get('scales')
+#     if scales:
+#         scale = d.get("scale")
+#         if not scale:
+#             scale = tuple(scales.keys())[0]
+#         gd, gw, max_channels = scales[scale]
+#     # na = (len(anchors[0]) // 2) if isinstance(anchors, list) else anchors  # number of anchors
+#     # no = na * (nc + 5)  # number of outputs = anchors * (classes + 5)
+#
+#     layers, save, c2 =  [], [], ch[-1]  # layers, savelist, ch out
+#
+#     for i, (f, n, m, args) in enumerate(d['backbone']+ d['head']):  # from, number, module, args
+#         m = eval(m) if isinstance(m, str) else m  # eval strings
+#         for j, a in enumerate(args):
+#             try:
+#                 args[j] = eval(a) if isinstance(a, str) else a  # eval strings
+#             except:
+#                 pass
+#
+#         n = max(round(n * gd), 1) if n > 1 else n  # depth gain
+#         if m in [Conv, GhostConv, Bottleneck, GhostBottleneck, SPP, DWConv, MixConv2d, Focus, CrossConv, BottleneckCSP,
+#                  C3, C3TR, C3k2, C2PSA, SPP, SPPF]:
+#             c1, c2 = ch[f], args[0]
+#             if c2 != nc:  # if not output
+#                 c2 = make_divisible(min(c2, max_channels) * gw, 8)
+#
+#             args = [c1, c2, *args[1:]]
+#             if m in [BottleneckCSP, C3, C3TR, C3k2, C2PSA]:
+#                 args.insert(2, n)  # number of repeats
+#                 n = 1
+#             if m is C3k2:  # for M/L/X sizes
+#                 legacy = False
+#                 if scale in "mlx":
+#                     args[3] = True
+#         elif m is nn.BatchNorm2d:
+#             args = [ch[f]]
+#         elif m is Concat:
+#             c2 = sum([ch[x] for x in f])
+#         elif m is Detect:
+#             args.append([ch[x] for x in f])
+#             if isinstance(args[1], int):  # number of anchors
+#                 args[1] = [list(range(args[1] * 2))] * len(f)
+#         elif m is Contract:
+#             c2 = ch[f] * args[0] ** 2
+#         elif m is Expand:
+#             c2 = ch[f] // args[0] ** 2
+#         elif m is Detect_yolov11:
+#             args.append([ch[x] for x in f])
+#             m.legacy = legacy
+#         else:
+#             c2 = ch[f]
+#
+#         m_ = nn.Sequential(*[m(*args) for _ in range(n)]) if n > 1 else m(*args)  # module
+#         t = str(m)[8:-2].replace('__main__.', '')  # module type
+#         np = sum([x.numel() for x in m_.parameters()])  # number params
+#         m_.i, m_.f, m_.type, m_.np = i, f, t, np  # attach index, 'from' index, type, number params
+#         logger.info('%3s%18s%3s%10.0f  %-40s%-30s' % (i, f, n, np, t, args))  # print
+#         save.extend(x % i for x in ([f] if isinstance(f, int) else f) if x != -1)  # append to savelist
+#         layers.append(m_)
+#         if i == 0:
+#             ch = []
+#         ch.append(c2)
+#
+#
+#     layers_rgb = layers[:4].copy()
+#     layer_ir = layers[:4].copy()
+#     rgb_stream = nn.Sequential(*layers_rgb)
+#     ir_stream = nn.Sequential(*layer_ir)
+#
+#     # 以concat为界，分割模型
+#     my_layer = []
+#     for i in range(4, len(layers)):
+#         my_layer.append([layers[i]].copy())
+#
+#     # print("My Layer")
+#     # print(len(my_layer))
+#     # for i in range(len(my_layer)):
+#     #     print(my_layer[i])
+#     # layer_4 = layers[4].copy()
+#     # layer_5 = layers[5].copy()
+#     # layers_rest = layers[4:].copy()
+#     # rest_net = nn.Sequential(*layers_rest)
+#     # print(rest_net)
+#     # print(" REST Net")
+#     # print(rest_net)
+#
+#     model = TwostreamNet(rgb_stream, ir_stream, my_layer)
+#     print("Two Stream Model")
+#     print(model)
+#
+#     # return nn.Sequential(*layers), sorted(save)
+#     return model, sorted(save)
 
 
 if __name__ == '__main__':
