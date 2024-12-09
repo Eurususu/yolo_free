@@ -162,4 +162,4 @@ if __name__ == '__main__':
         with torch.no_grad():
             process_video(opt, video_path, model)
     # video_path = '/home/jia/anktechDrive/12_原始数据/我奥赛事/20230912-175555/0.mp4'
-    # process_video(video_path, model)
+    # process_video(opt, video_path, model)

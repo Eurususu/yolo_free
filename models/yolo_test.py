@@ -562,6 +562,8 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
         elif m is Detect_yolov11:
             args.append([ch[x] for x in f])
             m.legacy = legacy
+        elif m is space_to_depth:
+            c2 = 4*ch[f]
         else:
             c2 = ch[f]
 
